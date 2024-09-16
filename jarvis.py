@@ -70,7 +70,7 @@ def handle_message(update: Update, context: CallbackContext):
     speak(response)
 
 def main():
-    TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN_HERE'
+    TOKEN = '7381859403:AAGMC_0uvK_Uf34NTNJx6YNWvO203nCw6XY'
     updater = Updater(TOKEN)
 
     dp = updater.dispatcher
