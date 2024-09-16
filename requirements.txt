@@ -1,1 +1,1 @@
-pip install SpeechRecognition pyttsx3 wikipedia-api requests
+7381859403:AAGMC_0uvK_Uf34NTNJx6YNWvO203nCw6XY
