@@ -1,94 +1,84 @@
-import speech_recognition as sr
 import pyttsx3
-import webbrowser
-import wikipediaapi
-import requests
-import time
+import speech_recognition as sr
+import datetime
+import os
+from telegram import Update
+from telegram.ext import Updater, CommandHandler, CallbackContext
 
-# Initialize the recognizer and speech engine
-recognizer = sr.Recognizer()
-engine = pyttsx3.init()
+# Initialize text-to-speech engine
+engine = pyttsx3.init('sapi5')
+voices = engine.getProperty('voices')
+engine.setProperty('voice', voices[0].id)
 
-# Function to make Jarvis speak
-def speak(text):
-    engine.say(text)
+def speak(audio):
+    engine.say(audio)
     engine.runAndWait()
 
-# Function to take voice input
-def take_command():
+def commands():
+    r = sr.Recognizer()
     with sr.Microphone() as source:
         print("Listening...")
-        recognizer.adjust_for_ambient_noise(source)
-        audio = recognizer.listen(source)
-        
+        r.pause_threshold = 1
+        r.adjust_for_ambient_noise(source, duration=1)
+        audio = r.listen(source)
+
+    try:
+        print("Wait for few Moments...")
+        query = r.recognize_google(audio, language='en-in')
+        print(f"You just said: {query}\n")
+    except Exception as e:
+        print(e)
+        speak("Please Tell me again")
+        query = "none"
+    return query
+
+def wishings():
+    hour = int(datetime.datetime.now().hour)
+    if hour >= 0 and hour < 12:
+        return "Good Morning BOSS"
+    elif hour >= 12 and hour < 17:
+        return "Good Afternoon BOSS"
+    elif hour >= 17 and hour < 21:
+        return "Good Evening BOSS"
+    else:
+        return "Good Night BOSS"
+
+def start(update: Update, context: CallbackContext):
+    update.message.reply_text(wishings())
+
+def handle_message(update: Update, context: CallbackContext):
+    query = update.message.text.lower()
+    if 'time' in query:
+        strTime = datetime.datetime.now().strftime("%H:%M:%S")
+        response = f"Sir, the time is {strTime}"
+    elif 'open firefox' in query:
+        response = "Opening firefox Application sir..."
+        # Adjust or remove this line based on Android capabilities
+        # os.startfile() is not supported in Termux
+    elif 'wikipedia' in query:
         try:
-            print("Recognizing...")
-            query = recognizer.recognize_google(audio)
-            print(f"User said: {query}\n")
-        except Exception as e:
-            print("Could not understand your command, please try again.")
-            speak("Could not understand your command, please try again.")
-            return None
-        return query.lower()
-
-# Function to search Wikipedia
-def search_wikipedia(query):
-    wiki_wiki = wikipediaapi.Wikipedia('en')
-    page = wiki_wiki.page(query)
-    
-    if page.exists():
-        speak(f"Here is what I found on {query}")
-        print(page.summary[:500])
-        speak(page.summary[:500])
-    else:
-        speak("Sorry, I couldn't find any information on that topic.")
-
-# Function to get weather information
-def get_weather(city):
-    api_key = "1536fffec7aa626142d0ca8374295739"  # Replace with your OpenWeatherMap API key
-    base_url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
-    response = requests.get(base_url)
-    
-    if response.status_code == 200:
-        data = response.json()
-        temperature = data['main']['temp']
-        description = data['weather'][0]['description']
-        speak(f"The temperature in {city} is {temperature} degrees Celsius with {description}.")
-    else:
-        speak("Sorry, I couldn't retrieve the weather information.")
-
-# Main logic for Jarvis
-def jarvis():
-    speak("Hello, I am Jarvis. How can I assist you today?")
-    
-    while True:
-        query = take_command()
-
-        if query is None:
-            continue
-
-        # Commands for specific tasks
-        if 'wikipedia' in query:
-            speak("Searching Wikipedia...")
+            import wikipedia
             query = query.replace("wikipedia", "")
-            search_wikipedia(query.strip())
-        
-        elif 'open google' in query:
-            speak("Opening Google.")
-            webbrowser.open("https://www.google.com")
-        
-        elif 'weather in' in query:
-            city = query.split("in")[-1].strip()
-            speak(f"Getting weather information for {city}.")
-            get_weather(city)
+            results = wikipedia.summary(query, sentences=1)
+            response = f"According to Wikipedia, {results}"
+        except:
+            response = "No results found."
+    else:
+        response = "I don't understand that command."
 
-        elif 'stop' in query or 'exit' in query:
-            speak("Goodbye!")
-            break
+    update.message.reply_text(response)
+    speak(response)
 
-        else:
-            speak("Sorry, I didn't get that. Can you repeat?")
+def main():
+    TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN_HERE'
+    updater = Updater(TOKEN)
 
-# Start Jarvis
+    dp = updater.dispatcher
+    dp.add_handler(CommandHandler('start', start))
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
+
+    updater.start_polling()
+    updater.idle()
+
 if __name__ == "__main__":
-    jarvis()
+    main()
